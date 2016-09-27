@@ -8,33 +8,66 @@ process.env.NODE_ENV = 'test';
 const http = require('http');
 const request = require('request');
 const chai = require('chai');
-const userFixture = require('../fixtures/user');
+// const userFixture = require('../fixtures/user');
 const should = chai.should();
 
-let app;
-let appServer;
-let mongoose;
-let User;
-let Contact;
-let config;
-let baseUrl;
-let apiUrl;
+// var mongoose = require('mongoose');
+var app = require('../../server');
+var config = app.get('config');
+// var baseUrl = config.baseUrl;
+// var User = mongoose.model('User');
+// var Contact = mongoose.model('Contact');
+// var appServer;
 
 describe('Contacts endpoints test', function() {
 
     before((done) => {
-        // boot app
-        // start listening to requests
+        appServer = http.createServer(app);
+
+        appServer.on('listening', function() {
+            User.create(userFixture, function(err, user) {
+                if (err) throw err;
+
+                // authenticate the user
+                request({
+                    method: 'POST',
+                    url: baseUrl + '/auth/signin',
+                    form: {
+                        'email': userFixture.email,
+                        'password': 'P@ssw0rd!'
+                    },
+                    json: true
+                }, function(err, res, body) {
+                    if (err) throw err;
+
+                    res.statusCode.should.equal(200);
+                    done();
+                });
+
+            });
+        });
+
+        appServer.listen(config.port);
     });
 
     after(function(done) {
-        // close app
-        // cleanup database
-        // close connection to mongo
+        appServer.on('close', function() {
+            done();
+        });
+
+        mongoose.connection.db.dropDatabase(function(err) {
+            if (err) throw err;
+
+            appServer.close();
+        });
     });
 
     afterEach((done) => {
-        // remove contacts
+        Contact.remove({}, function(err) {
+            if (err) throw err;
+
+            done();
+        });
     });
 
     // describe('Save contact', () => {});
